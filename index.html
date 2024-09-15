@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="style.css">
+    <title>Real Time Chat App</title>
+</head>
+<body>
+    <h1 class="title">Welcome to the Chat Room <span id="name"></span></h1>
+    <div class="bodyContainer">
+        <div class="phone-container">
+            <div class="container">
+                <div id="login" class="section">
+                    <input type="text" id="usernameInput" autocomplete="off" placeholder="Enter your Username" class="input" />
+                    <button onclick="login()" class="button">Login</button>
+                </div>
+                <div id="chat" class="section" style="display:none;">
+                    <div id="roomSelection" class="room-selection" style="display:block;">
+                        <input type="text" id="roomNameInput" class="input" autocomplete="off" placeholder="Enter Chat Room Name">
+                        <button onclick="joinChatRoom()" class="button">Join Chat Room</button>
+                        <button onclick="startPrivateChat()" class="button">Start Private Chat</button>
+                    </div>
+                    <div id="chatRoom" style="display:none;">
+                        <h2 class="room-header">Chat Room: <span id="currentRoom"></span></h2>
+                        <ul id="messages" class="messages"></ul>
+                        <input type="text" id="messageInput" class="input" autocomplete="off" />
+                        <input type="file" id="fileInput" class="input" />
+                        <button onclick="sendMessage()" id="sendMessageBtn" class="button">Send</button>
+                        <p id="typingStatus" class="typing-status"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let username = '';
+        let currentRoom = '';
+        let recipient = '';
+        const displayedMessages = new Set();
+
+        function playNotificationSound() {
+            const audio = new Audio('ting.mp3');
+            audio.play();
+        }
+
+        function displayMessage(message, sender, isImage = false, fileType = '', fileUrl = '') {
+            const messages = document.getElementById("messages");
+
+            if (displayedMessages.has(message)) return;
+
+            const li = document.createElement("li");
+            if (isImage) {
+                const img = document.createElement("img");
+                img.src = fileUrl || message;
+                img.className = 'chat-image';
+                li.appendChild(img);
+            } else if (fileType === 'pdf' || fileType === 'docx') {
+                const link = document.createElement("a");
+                link.href = fileUrl || message;
+                link.target = '_blank';
+                link.textContent = `View & Download ${fileType.toUpperCase()} file`;
+                link.className = 'chat-file-link';
+                li.appendChild(link);
+            } else {
+                li.innerHTML = sender === username ? `You: ${message}` : `${username}: ${message}`;
+                li.className = sender === username ? 'sent' : 'received';
+            }
+
+            messages.appendChild(li);
+            displayedMessages.add(message);
+
+            if (message.includes('has joined') || message.includes('has left')) {
+                setTimeout(() => {
+                    li.remove();
+                    displayedMessages.delete(message);
+                }, 5000);
+            }
+
+            if (sender !== username) {
+                playNotificationSound();
+            }
+        }
+
+        function displayTyping(username, isTyping) {
+            const typingStatus = document.getElementById('typingStatus');
+            typingStatus.textContent = isTyping ? `${username} is typing...` : '';
+        }
+
+        let typingTimeout;
+        function handleTyping() {
+            if (currentRoom || recipient) {
+                clearTimeout(typingTimeout);
+                socket.emit('typing', true);
+                typingTimeout = setTimeout(() => {
+                    socket.emit('typing', false);
+                }, 1000);
+            }
+        }
+
+        const messageInput = document.getElementById('messageInput');
+        messageInput.addEventListener('input', handleTyping);
+
+        function login() {
+            const usernameInput = document.getElementById('usernameInput');
+            const nameField = document.getElementById("name");
+            username = usernameInput.value.trim();
+            if (username) {
+                document.getElementById('login').style.display = 'none';
+                nameField.innerText = username;
+                document.getElementById('chat').style.display = 'block';
+                document.getElementById('messageInput').style.display = 'block';
+                document.getElementById('fileInput').style.display = 'block';
+                document.getElementById('messageInput').focus();
+                document.getElementById('sendMessageBtn').style.display = 'block';
+                socket.emit('login', username);
+            }
+        }
+
+        function joinChatRoom() {
+            const roomNameInput = document.getElementById("roomNameInput");
+            const roomName = roomNameInput.value.trim();
+            if (roomName) {
+                currentRoom = roomName;
+                recipient = '';
+                document.getElementById('roomSelection').style.display = 'none';
+                document.getElementById('chatRoom').style.display = 'block';
+                document.getElementById('currentRoom').textContent = roomName;
+                document.getElementById('messageInput').focus();
+                socket.emit('joinRoom', currentRoom);
+            }
+        }
+
+        function startPrivateChat() {
+            const recipientInput = prompt('Enter the username of the person you want to chat with:');
+            if (recipientInput) {
+                recipient = recipientInput.trim();
+                currentRoom = '';
+                document.getElementById('roomSelection').style.display = 'none';
+                document.getElementById('chatRoom').style.display = 'block';
+                document.getElementById('currentRoom').textContent = `Private Chat with ${recipient}`;
+                document.getElementById('messageInput').focus();
+                socket.emit('privateChat', recipient);
+            }
+        }
+
+        function sendMessage() {
+            const messageInput = document.getElementById("messageInput");
+            const fileInput = document.getElementById("fileInput");
+            const message = messageInput.value.trim();
+
+            if (message || fileInput.files.length > 0) {
+                if (fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const fileData = reader.result;
+                        const fileType = file.type.split('/')[1];
+                        const fileUrl = URL.createObjectURL(file);
+
+                        if (currentRoom) {
+                            socket.emit("chatMessage", { message: fileData, sender: username, isImage: fileType === 'jpeg' || fileType === 'png', fileType, fileUrl });
+                        } else if (recipient) {
+                            socket.emit("privateMessage", { message: fileData, recipient, sender: username, isImage: fileType === 'jpeg' || fileType === 'png', fileType, fileUrl });
+                        }
+                        displayMessage(fileData, username, fileType === 'jpeg' || fileType === 'png', fileType, fileUrl);
+                    };
+                    reader.readAsDataURL(file);
+                } else if (currentRoom) {
+                    socket.emit("chatMessage", { message, recipient, sender: username });
+                } else if (recipient) {
+                    socket.emit("privateMessage", { message, recipient, sender: username });
+                }
+                messageInput.value = "";
+                fileInput.value = "";
+                displayMessage(message, username);
+            }
+        }
+
+        socket.on('loginError', (errorMessage) => {
+            alert(errorMessage);
+        });
+
+        socket.on('messageHistory', (history) => {
+            const messages = document.getElementById('messages');
+            messages.innerHTML = '';
+            displayedMessages.clear();
+            history.forEach(({ user, message, isImage, fileType, fileUrl }) => {
+                displayMessage(message, user, isImage, fileType, fileUrl);
+            });
+        });
+
+        socket.on("chatMessage", ({ message, sender, isImage, fileType, fileUrl }) => {
+            displayMessage(message, sender, isImage, fileType, fileUrl);
+        });
+
+        socket.on('privateMessage', ({ message, sender, isImage, fileType, fileUrl }) => {
+            displayMessage(message, sender, isImage, fileType, fileUrl);
+        });
+
+        socket.on('typing', ({ username, isTyping }) => {
+            displayTyping(username, isTyping);
+        });
+
+        socket.on('userCount', (count) => {
+            console.log(`There are ${count} users online.`);
+        });
+
+        socket.on('userJoined', (message) => {
+            displayMessage(message, '');
+        });
+
+        socket.on('userLeft', (message) => {
+            displayMessage(message, '');
+        });
+    </script>
+</body>
+</html>

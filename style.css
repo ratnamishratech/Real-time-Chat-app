@@ -1,0 +1,114 @@
+body {
+  font-family: Arial, sans-serif;
+  background-color: #ecece7;
+  margin: 0;
+  padding: 0;
+  background-image: url("/arabesque.png");
+}
+
+.title {
+  text-align: center;
+  margin: 20px;
+  font-family: "Sofia", sans-serif;
+}
+
+#name{
+  background: linear-gradient(to right, #f32170, #ff6b08, #cf23cf, #eedd44);
+  -webkit-text-fill-color: transparent;
+  -webkit-background-clip: text;
+}
+.bodyContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 80vh;
+}
+
+.phone-container {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.container {
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  padding: 20px;
+}
+
+.input {
+  width: calc(100% - 22px);
+  padding: 10px;
+  margin: 5px 0;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+.button {
+  width: 100%;
+  padding: 10px;
+  margin: 5px 0;
+  border: none;
+  border-radius: 5px;
+  background: #007bff;
+  color: #fff;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: #0056b3;
+}
+
+.section {
+  margin: 20px 0;
+}
+
+.room-header {
+  margin: 10px 0;
+}
+
+.messages {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0;
+  height: 300px;
+  overflow-y: auto;
+}
+
+.messages li {
+  padding: 10px;
+  margin: 5px 0;
+  border-radius: 5px;
+}
+
+.sent {
+  background: #d1ecf1;
+  text-align: right;
+}
+
+.received {
+  background: #e2e3e5;
+  text-align: left;
+}
+
+.chat-image {
+  max-width: 200px;
+  height: auto;
+}
+
+.chat-file-link {
+  display: block;
+  margin: 5px 0;
+  color: #007bff;
+  text-decoration: none;
+}
+
+.chat-file-link:hover {
+  text-decoration: underline;
+}
+
+.typing-status {
+  font-style: italic;
+  color: rgb(102, 101, 101);
+}
